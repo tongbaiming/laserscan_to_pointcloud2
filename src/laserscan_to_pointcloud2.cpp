@@ -42,6 +42,7 @@ void scanCallback2(const sensor_msgs::LaserScan::ConstPtr& scan_in, const ros::P
 	static tf::TransformListener listener_;
 	static sensor_msgs::PointCloud2Ptr cloud_ptr_10  = boost::make_shared<sensor_msgs::PointCloud2>();
 	static laser_geometry::LaserProjection projector_;
+	static bool is_dense = true;
 	sensor_msgs::PointCloud2Ptr cloud_ptr = boost::make_shared<sensor_msgs::PointCloud2>();
 	if(!listener_.waitForTransform(scan_in->header.frame_id, "party_1/instance_1/erlecopter_2/base_link_inertia", scan_in->header.stamp , ros::Duration(1.0)))
 	{
@@ -51,7 +52,11 @@ void scanCallback2(const sensor_msgs::LaserScan::ConstPtr& scan_in, const ros::P
 	}
 	count++;
 	projector_.transformLaserScanToPointCloud("party_1/instance_1/erlecopter_2/base_link_inertia",*scan_in, *cloud_ptr,listener_);
-	if(count % 40 == 1)
+	if(cloud_ptr->is_dense == false)
+	{
+		is_dense = false;
+	}
+	if(count % 200 == 1)
 	{
 		count = 1;
 		//cloud_ptr_10.reset();
@@ -62,16 +67,18 @@ void scanCallback2(const sensor_msgs::LaserScan::ConstPtr& scan_in, const ros::P
 		cloud_ptr_10->row_step = 0;
 		cloud_ptr_10->fields = cloud_ptr->fields;
 		cloud_ptr_10->is_bigendian = false;
-		cloud_ptr_10->is_dense = false;
+		//cloud_ptr_10->is_dense = false;
 		cloud_ptr_10->data.clear();
-		cloud_ptr_10->data.reserve(144000);
+		cloud_ptr_10->data.reserve(720000);
 		cloud_ptr_10->header.frame_id = cloud_ptr->header.frame_id;
 		cloud_ptr_10->header.stamp = cloud_ptr->header.stamp;
 	}
 	concatenateCloud(cloud_ptr, cloud_ptr_10);
-	if(count % 40 == 0 )
+	if(count % 200 == 0 )
 	{
+		cloud_ptr_10->is_dense = is_dense;
 		pub.publish(cloud_ptr_10);
+		is_dense = true;
 	}
 }
 

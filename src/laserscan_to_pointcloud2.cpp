@@ -15,6 +15,9 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 
+#include <pcl_ros/point_cloud.h>
+#include <pcl_ros/transforms.h>
+
 using namespace boost;
 
 
@@ -40,18 +43,20 @@ void scanCallback2(const sensor_msgs::LaserScan::ConstPtr& scan_in, const ros::P
 {
 	static int count = 0;
 	static tf::TransformListener listener_;
+	static tf::TransformListener listener_2_;
 	static sensor_msgs::PointCloud2Ptr cloud_ptr_10  = boost::make_shared<sensor_msgs::PointCloud2>();
+	static sensor_msgs::PointCloud2Ptr cloud_ptr_10_p = boost::make_shared<sensor_msgs::PointCloud2>();
 	static laser_geometry::LaserProjection projector_;
 	static bool is_dense = true;
 	sensor_msgs::PointCloud2Ptr cloud_ptr = boost::make_shared<sensor_msgs::PointCloud2>();
-	if(!listener_.waitForTransform(scan_in->header.frame_id, "party_1/instance_1/erlecopter_2/base_link_inertia", scan_in->header.stamp , ros::Duration(1.0)))
+	if(!listener_.waitForTransform(scan_in->header.frame_id, "/world", scan_in->header.stamp , ros::Duration(1.0)))
 	{
 		ROS_INFO("scan_in->header.frame_id: %s", (scan_in->header.frame_id).c_str());
-		ROS_INFO("no transform to base_link_inertia");
+		ROS_INFO("no transform to /world");
 		return ;
 	}
 	count++;
-	projector_.transformLaserScanToPointCloud("party_1/instance_1/erlecopter_2/base_link_inertia",*scan_in, *cloud_ptr,listener_);
+	projector_.transformLaserScanToPointCloud("/world",*scan_in, *cloud_ptr,listener_);
 	if(cloud_ptr->is_dense == false)
 	{
 		is_dense = false;
@@ -77,7 +82,16 @@ void scanCallback2(const sensor_msgs::LaserScan::ConstPtr& scan_in, const ros::P
 	if(count % 200 == 0 )
 	{
 		cloud_ptr_10->is_dense = is_dense;
-		pub.publish(cloud_ptr_10);
+		if(!listener_2_.waitForTransform("/world", "party_1/instance_1/erlecopter_2/base_link_inertia", cloud_ptr_10->header.stamp, ros::Duration(1.0)))
+		{
+			ROS_INFO("cloud_ptr_10->header.frame_id: %s", (cloud_ptr_10->header.frame_id).c_str());
+			ROS_INFO("no transform to base_link_inertia");
+			return ;
+		}
+		pcl_ros::transformPointCloud("party_1/instance_1/erlecopter_2/base_link_inertia", (*cloud_ptr_10), (*cloud_ptr_10_p), listener_2_);
+		//pub.publish(cloud_ptr_10);
+		pub.publish(cloud_ptr_10_p);
+		ROS_INFO("cloud_ptr_10 header.frame_id = %s", (cloud_ptr_10->header.frame_id).c_str());
 		is_dense = true;
 	}
 }
